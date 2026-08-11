@@ -1,4 +1,4 @@
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
 
 
@@ -61,3 +61,47 @@ class RegisterSerializer(serializers.ModelSerializer):
             **validated_data,
         )
         return user
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор пользователей
+    """
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "email",
+            "username",
+            "first_name",
+            "last_name",
+            "company",
+            "position",
+            "type",
+        )
+
+
+class LoginSerializer(serializers.Serializer):
+    """
+    Сериализатор для авторизации
+    """
+
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        write_only=True,
+    )
+
+    def validate(self, attrs):
+        email = attrs["email"]
+        password = attrs["password"]
+        user = authenticate(
+            email=email,
+            password=password,
+        )
+        if user is None:
+            raise serializers.ValidationError("Неверный email или пароль.")
+        if not user.is_active:
+            raise serializers.ValidationError("Email пользователя не подтвержден.")
+        attrs["user"] = user
+        return attrs
