@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.conf import settings
 
 from users.serializers import RegisterSerializer, LoginSerializer, UserSerializer
@@ -150,3 +151,40 @@ class MeView(APIView):
             serializer.data,
             status=status.HTTP_200_OK,
         )
+
+
+class RefreshView(APIView):
+    """
+    Представление для обновления access токена с использованием refresh токена
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+        if not refresh_token:
+            return Response(
+                {"detail": "Refresh token отсутствует"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        try:
+            refresh = RefreshToken(refresh_token)
+            access = refresh.access_token
+            response = Response(
+                {"detail": "Access token обновлен"},
+                status=status.HTTP_200_OK,
+            )
+            response.set_cookie(
+                key="access_token",
+                value=str(access),
+                httponly=True,
+                secure=settings.JWT_COOKIE_SECURE,
+                samesite=settings.JWT_COOKIE_SAMESITE,
+                max_age=30 * 60,
+            )
+            return response
+        except TokenError:
+            return Response(
+                {"detail": "Недействительный refresh token"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
