@@ -105,3 +105,38 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Email пользователя не подтвержден.")
         attrs["user"] = user
         return attrs
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Сериализатор для запроса восстановления пароля
+    """
+
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """
+    Сериализатор для установки нового пароля
+    """
+
+    user_id = serializers.IntegerField()
+    token = serializers.CharField()
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
+    password_confirm = serializers.CharField(
+        write_only=True,
+    )
+
+    def validate(self, attrs):
+        """
+        Проверяет совпадение нового пароля и подтверждения
+        """
+
+        if attrs["password"] != attrs["password_confirm"]:
+            raise serializers.ValidationError(
+                {"password_confirm": "Пароли не совпадают"}
+            )
+        return attrs
