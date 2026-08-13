@@ -8,9 +8,18 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.conf import settings
 
-from users.serializers import RegisterSerializer, LoginSerializer, UserSerializer
-from users.services import send_verification_email
-from users.tokens import email_verification_token_generator
+from users.serializers import (
+    RegisterSerializer,
+    LoginSerializer,
+    UserSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+)
+from users.services import send_verification_email, send_password_reset_email
+from users.tokens import (
+    email_verification_token_generator,
+    password_reset_token_generator,
+)
 
 User = get_user_model()
 
@@ -188,3 +197,81 @@ class RefreshView(APIView):
                 {"detail": "Недействительный refresh token"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+
+class PasswordResetRequestView(APIView):
+    """
+    Представление для запроса восстановления пароля
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {
+                    "detail": (
+                        "Если пользователь с таким email "
+                        "существует, письмо для восстановления "
+                        "пароля будет отправлено."
+                    )
+                },
+                status=status.HTTP_200_OK,
+            )
+        if not user.is_active:
+            return Response(
+                {
+                    "detail": (
+                        "Если пользователь с таким email "
+                        "существует, письмо для восстановления "
+                        "пароля будет отправлено."
+                    )
+                },
+                status=status.HTTP_200_OK,
+            )
+        send_password_reset_email(user)
+        return Response(
+            {
+                "detail": (
+                    "Если пользователь с таким email "
+                    "существует, письмо для восстановления "
+                    "пароля будет отправлено."
+                )
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    Представление для подтверждения восстановления пароля
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user_id = serializer.validated_data["user_id"]
+        token = serializer.validated_data["token"]
+        password = serializer.validated_data["password"]
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise ValidationError("Пользователь не найден")
+        if not password_reset_token_generator.check_token(
+            user,
+            token,
+        ):
+            raise ValidationError("Недействительный или просроченный токен")
+        user.set_password(password)
+        user.save(update_fields=["password"])
+        return Response(
+            {"detail": "Пароль успешно изменен."},
+            status=status.HTTP_200_OK,
+        )
