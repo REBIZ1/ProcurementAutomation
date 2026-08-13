@@ -6,8 +6,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
 
 from products.services import import_products_from_yaml_content
+from products.models import Shop
 
 
 class ShopUpdatePriceView(APIView):
@@ -80,6 +82,51 @@ class ShopUpdatePriceView(APIView):
             {
                 "Status": True,
                 "shop": shop.name,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ShopStateView(APIView):
+    """
+    Включение или отключение приема заказов поставщиком
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.type != "shop":
+            return Response(
+                {
+                    "Status": False,
+                    "Error": "Только для поставщиков",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        shop = get_object_or_404(Shop, user=request.user)
+        state = request.data.get("state")
+        if state is None:
+            return Response(
+                {
+                    "Status": False,
+                    "Error": "Необходимо указать state",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(state, bool):
+            return Response(
+                {
+                    "Status": False,
+                    "Error": "Поле state должно иметь значение true или false",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        shop.state = state
+        shop.save(update_fields=["state"])
+        return Response(
+            {
+                "Status": True,
+                "state": shop.state,
             },
             status=status.HTTP_200_OK,
         )
