@@ -72,6 +72,11 @@ class Product(models.Model):
         max_length=255,
         verbose_name="Название",
     )
+    description = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Описание",
+    )
     category = models.ForeignKey(
         Category,
         on_delete=models.CASCADE,
