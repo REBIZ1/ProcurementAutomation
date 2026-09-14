@@ -1,8 +1,23 @@
 from django.urls import path
 
-from products.views import ShopUpdatePriceView, ShopStateView
+from products.views import (
+    ShopUpdatePriceView,
+    ShopStateView,
+    ProductListView,
+    ProductDetailView,
+)
 
 urlpatterns = [
+    path(
+        "products/",
+        ProductListView.as_view(),
+        name="product-list",
+    ),
+    path(
+        "products/<int:pk>/",
+        ProductDetailView.as_view(),
+        name="product-detail",
+    ),
     path(
         "shop/update/",
         ShopUpdatePriceView.as_view(),
