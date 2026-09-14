@@ -2,14 +2,16 @@ from urllib.request import Request, urlopen
 import yaml
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
-from rest_framework import status
+from django.db.models import Q
+from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 
+from products.serializers import ProductListSerializer, ProductDetailSerializer
 from products.services import import_products_from_yaml_content
-from products.models import Shop
+from products.models import Shop, Product
 
 
 class ShopUpdatePriceView(APIView):
@@ -130,3 +132,47 @@ class ShopStateView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ProductListView(generics.ListAPIView):
+    """
+    Получение списка товаров
+    с возможностью поиска и фильтрации
+    """
+
+    queryset = Product.objects.all()
+    serializer_class = ProductListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Product.objects.select_related("category").prefetch_related(
+            "product_infos__shop",
+            "product_infos__product_parameters__parameter",
+        )
+        search = self.request.query_params.get("search")
+        category = self.request.query_params.get("category")
+        shop = self.request.query_params.get("shop")
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(description__icontains=search)
+                | Q(product_infos__model__icontains=search)
+            )
+        if category:
+            queryset = queryset.filter(category__id=category)
+        if shop:
+            queryset = queryset.filter(product_infos__shop__id=shop)
+        return queryset.distinct()
+
+
+class ProductDetailView(generics.RetrieveAPIView):
+    """
+    Получение подробной информации о товаре
+    """
+
+    queryset = Product.objects.select_related("category").prefetch_related(
+        "product_infos__shop",
+        "product_infos__product_parameters__parameter",
+    )
+    serializer_class = ProductDetailSerializer
+    permission_classes = [IsAuthenticated]
