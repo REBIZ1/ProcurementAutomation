@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from orders.models import CartItem, Cart
+from orders.models import CartItem, Cart, Contact
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -76,3 +76,27 @@ class CartItemCreateSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(
         min_value=1,
     )
+
+
+class ContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = (
+            "id",
+            "last_name",
+            "first_name",
+            "patronymic",
+            "email",
+            "phone",
+            "city",
+            "street",
+            "house",
+            "building",
+            "structure",
+            "apartment",
+        )
+        read_only_fields = ("id",)
+
+    def create(self, validated_data):
+        validated_data["user"] = self.context["request"].user
+        return super().create(validated_data)
