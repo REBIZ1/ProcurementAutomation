@@ -13,6 +13,8 @@ from orders.serializers import (
     ContactSerializer,
     OrderCreateSerializer,
     OrderSerializer,
+    OrderListSerializer,
+    OrderDetailSerializer,
 )
 from products.models import ProductInfo
 
@@ -217,4 +219,32 @@ class OrderCreateView(APIView):
         return Response(
             OrderSerializer(order).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+class OrderListView(generics.ListAPIView):
+    """
+    Получить список заказов текущего пользователя
+    """
+
+    serializer_class = OrderListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user).prefetch_related("items")
+
+
+class OrderDetailView(generics.RetrieveAPIView):
+    """
+    Получить детальную информацию о заказе
+    """
+
+    serializer_class = OrderDetailSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Order.objects.filter(user=self.request.user)
+            .select_related("contact")
+            .prefetch_related("items")
         )
