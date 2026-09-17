@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from orders.models import CartItem, Cart, Contact
+from orders.models import CartItem, Cart, Contact, OrderItem, Order
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -100,3 +100,64 @@ class ContactSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["user"] = self.context["request"].user
         return super().create(validated_data)
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор позиции заказа
+    """
+
+    total = serializers.DecimalField(
+        source="total_price",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    class Meta:
+        model = OrderItem
+        fields = ("id", "product_name", "shop_name", "price", "quantity", "total")
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор заказа пользователя
+    """
+
+    items = OrderItemSerializer(
+        many=True,
+        read_only=True,
+    )
+    total_sum = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    contact = ContactSerializer(
+        read_only=True,
+    )
+    status_display = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "created_at",
+            "status",
+            "status_display",
+            "total_sum",
+            "contact",
+            "items",
+        )
+
+
+class OrderCreateSerializer(serializers.Serializer):
+    """
+    Сериализатор для создания заказа
+    """
+
+    cart_id = serializers.IntegerField(min_value=1)
+    contact_id = serializers.IntegerField(min_value=1)
