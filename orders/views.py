@@ -1,15 +1,18 @@
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from orders.models import Cart, CartItem, Contact
+from orders.models import Cart, CartItem, Contact, Order, OrderItem
 from orders.serializers import (
     CartSerializer,
     CartItemCreateSerializer,
     ContactSerializer,
+    OrderCreateSerializer,
+    OrderSerializer,
 )
 from products.models import ProductInfo
 
@@ -125,3 +128,93 @@ class ContactDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Contact.objects.filter(user=self.request.user)
+
+
+class OrderCreateView(APIView):
+    """
+    Подтверждение заказа
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = OrderCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cart_id = serializer.validated_data["cart_id"]
+        contact_id = serializer.validated_data["contact_id"]
+
+        cart = get_object_or_404(
+            Cart,
+            pk=cart_id,
+            user=request.user,
+        )
+        contact = get_object_or_404(
+            Contact,
+            pk=contact_id,
+            user=request.user,
+        )
+        cart_items = CartItem.objects.select_related(
+            "product_info",
+            "product_info__product",
+            "product_info__shop",
+        ).filter(cart=cart)
+        if not cart_items.exists():
+            return Response(
+                {"detail": "Корзина пуста."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for cart_item in cart_items:
+            product_info = cart_item.product_info
+            if not product_info.shop.state:
+                return Response(
+                    {
+                        "detail": (
+                            f"Поставщик "
+                            f"'{product_info.shop.name}' "
+                            "временно не принимает заказы."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if product_info.quantity < cart_item.quantity:
+                return Response(
+                    {
+                        "detail": (
+                            f"Недостаточное количество товара "
+                            f"'{product_info.product.name}'."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        order = Order.objects.create(
+            user=request.user,
+            contact=contact,
+            status="new",
+        )
+        for cart_item in cart_items:
+            product_info = cart_item.product_info
+            OrderItem.objects.create(
+                order=order,
+                product_info=product_info,
+                product_name=product_info.product.name,
+                shop_name=product_info.shop.name,
+                price=product_info.price,
+                quantity=cart_item.quantity,
+            )
+
+            product_info.quantity -= cart_item.quantity
+            product_info.save(update_fields=["quantity"])
+
+        cart_items.delete()
+        order = (
+            Order.objects.select_related("contact")
+            .prefetch_related("items")
+            .get(pk=order.pk)
+        )
+        return Response(
+            OrderSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
