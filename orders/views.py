@@ -1,12 +1,16 @@
 from django.shortcuts import get_object_or_404
 
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from orders.models import Cart, CartItem
-from orders.serializers import CartSerializer, CartItemCreateSerializer
+from orders.models import Cart, CartItem, Contact
+from orders.serializers import (
+    CartSerializer,
+    CartItemCreateSerializer,
+    ContactSerializer,
+)
 from products.models import ProductInfo
 
 
@@ -94,3 +98,30 @@ class CartItemDeleteView(APIView):
         return Response(
             status=status.HTTP_204_NO_CONTENT,
         )
+
+
+class ContactListCreateView(generics.ListCreateAPIView):
+    """
+    Получение и добавление контактов текущего пользователя
+    """
+
+    serializer_class = ContactSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Contact.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class ContactDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Получение, изменение и удаление контакта текущего пользователя
+    """
+
+    serializer_class = ContactSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Contact.objects.filter(user=self.request.user)
