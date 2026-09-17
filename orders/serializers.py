@@ -161,3 +161,54 @@ class OrderCreateSerializer(serializers.Serializer):
 
     cart_id = serializers.IntegerField(min_value=1)
     contact_id = serializers.IntegerField(min_value=1)
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор заказа для отображения в списке
+    """
+
+    total_sum = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    status_display = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Order
+        fields = ("id", "created_at", "total_sum", "status", "status_display")
+
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор заказа для детального отображения
+    """
+
+    items = OrderItemSerializer(many=True, read_only=True)
+    total_sum = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    contact = ContactSerializer(read_only=True)
+    status_display = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "created_at",
+            "updated_at",
+            "status",
+            "status_display",
+            "total_sum",
+            "contact",
+            "items"
+        )
