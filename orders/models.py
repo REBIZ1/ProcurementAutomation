@@ -153,3 +153,102 @@ class Contact(models.Model):
             f"{self.last_name} {self.first_name} — "
             f"{self.city}, {self.street}, {self.house}"
         )
+
+
+class Order(models.Model):
+    """
+    Заказ покупателя
+    """
+
+    STATUS_CHOICES = [
+        ("new", "Новый"),
+        ("confirmed", "Подтвержден"),
+        ("processing", "В обработке"),
+        ("sent", "Отправлен"),
+        ("delivered", "Доставлен"),
+        ("cancelled", "Отменен"),
+    ]
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="orders",
+        verbose_name="Покупатель",
+    )
+    contact = models.ForeignKey(
+        "Contact",
+        on_delete=models.PROTECT,
+        related_name="orders",
+        verbose_name="Контакт",
+    )
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default="new",
+        verbose_name="Статус",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата создания",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Дата изменения",
+    )
+
+    class Meta:
+        verbose_name = "Заказ"
+        verbose_name_plural = "Заказы"
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"Заказ №{self.id}"
+
+    @property
+    def total_sum(self):
+        return sum(item.total_price for item in self.items.all())
+
+
+class OrderItem(models.Model):
+    """
+    Товар в заказе
+    """
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Заказ",
+    )
+    product_info = models.ForeignKey(
+        ProductInfo,
+        on_delete=models.PROTECT,
+        related_name="order_items",
+        verbose_name="Товар поставщика",
+    )
+    product_name = models.CharField(
+        max_length=255,
+        verbose_name="Название товара",
+    )
+    shop_name = models.CharField(
+        max_length=100,
+        verbose_name="Название поставщика",
+    )
+    price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Цена на момент заказа",
+    )
+    quantity = models.PositiveIntegerField(
+        verbose_name="Количество",
+    )
+
+    class Meta:
+        verbose_name = "Товар заказа"
+        verbose_name_plural = "Товары заказа"
+
+    def __str__(self):
+        return f"{self.product_name} x {self.quantity}"
+
+    @property
+    def total_price(self):
+        return self.price * self.quantity
