@@ -5,6 +5,7 @@ from orders.views import (
     CartItemDeleteView,
     ContactListCreateView,
     ContactDetailView,
+    OrderCreateView,
 )
 
 urlpatterns = [
@@ -27,5 +28,10 @@ urlpatterns = [
         "contacts/<int:pk>/",
         ContactDetailView.as_view(),
         name="contact-detail",
+    ),
+    path(
+        "orders/",
+        OrderCreateView.as_view(),
+        name="order-create",
     ),
 ]
