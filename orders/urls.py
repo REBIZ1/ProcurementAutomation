@@ -6,6 +6,8 @@ from orders.views import (
     ContactListCreateView,
     ContactDetailView,
     OrderCreateView,
+    OrderListView,
+    OrderDetailView,
 )
 
 urlpatterns = [
@@ -33,5 +35,15 @@ urlpatterns = [
         "orders/",
         OrderCreateView.as_view(),
         name="order-create",
+    ),
+    path(
+        "orders/history/",
+        OrderListView.as_view(),
+        name="order-list",
+    ),
+    path(
+        "orders/<int:pk>/",
+        OrderDetailView.as_view(),
+        name="order-detail",
     ),
 ]
