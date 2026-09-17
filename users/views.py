@@ -163,11 +163,8 @@ class MeView(APIView):
 
 
 class RefreshView(APIView):
-    """
-    Представление для обновления access токена с использованием refresh токена
-    """
-
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
