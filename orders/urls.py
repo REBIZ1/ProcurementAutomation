@@ -8,6 +8,8 @@ from orders.views import (
     OrderCreateView,
     OrderListView,
     OrderDetailView,
+    SupplierOrderListView,
+    SupplierOrderStatusView,
 )
 
 urlpatterns = [
@@ -45,5 +47,15 @@ urlpatterns = [
         "orders/<int:pk>/",
         OrderDetailView.as_view(),
         name="order-detail",
+    ),
+    path(
+        "shop/orders/",
+        SupplierOrderListView.as_view(),
+        name="supplier-order-list",
+    ),
+    path(
+        "shop/orders/<int:pk>/status/",
+        SupplierOrderStatusView.as_view(),
+        name="supplier-order-status",
     ),
 ]
