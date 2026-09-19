@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from orders.email import send_order_confirmation_email
 from orders.models import Cart, CartItem, Contact, Order, OrderItem
 from orders.serializers import (
     CartSerializer,
@@ -15,8 +16,10 @@ from orders.serializers import (
     OrderSerializer,
     OrderListSerializer,
     OrderDetailSerializer,
+    SupplierOrderSerializer,
+    OrderStatusSerializer,
 )
-from products.models import ProductInfo
+from products.models import ProductInfo, Shop
 
 
 class CartView(APIView):
@@ -212,13 +215,14 @@ class OrderCreateView(APIView):
 
         cart_items.delete()
         order = (
-            Order.objects.select_related("contact")
+            Order.objects.select_related("contact", "user")
             .prefetch_related("items")
             .get(pk=order.pk)
         )
+        send_order_confirmation_email(order)
         return Response(
             OrderSerializer(order).data,
-            status=status.HTTP_201_CREATED,
+            status=201,
         )
 
 
@@ -248,3 +252,52 @@ class OrderDetailView(generics.RetrieveAPIView):
             .select_related("contact")
             .prefetch_related("items")
         )
+
+
+class SupplierOrderListView(generics.ListAPIView):
+    """
+    Представление для получения списка заказов поставщика
+    """
+
+    serializer_class = SupplierOrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.type != "shop":
+            return Order.objects.none()
+        shop = get_object_or_404(Shop, user=user)
+        return (
+            Order.objects.filter(items__product_info__shop=shop)
+            .distinct()
+            .prefetch_related("items")
+        )
+
+
+class SupplierOrderStatusView(APIView):
+    """
+    Представление для изменения статуса заказа поставщиком
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        if request.user.type != "shop":
+            return Response(
+                {"detail": "Только поставщик может изменять статус заказа."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        shop = get_object_or_404(
+            Shop,
+            user=request.user,
+        )
+        order = get_object_or_404(
+            Order.objects.filter(items__product_info__shop=shop).distinct(),
+            pk=pk,
+        )
+        serializer = OrderStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order.status = serializer.validated_data["status"]
+        order.save(update_fields=["status", "updated_at"])
+        order = Order.objects.prefetch_related("items").get(pk=order.pk)
+        return Response(SupplierOrderSerializer(order).data)
