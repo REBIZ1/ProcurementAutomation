@@ -210,5 +210,42 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "status_display",
             "total_sum",
             "contact",
-            "items"
+            "items",
         )
+
+
+class SupplierOrderSerializer(serializers.ModelSerializer):
+    """
+    Сериализатор заказа для поставщика
+    """
+
+    items = OrderItemSerializer(many=True, read_only=True)
+    total_sum = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    status_display = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "created_at",
+            "updated_at",
+            "status",
+            "status_display",
+            "total_sum",
+            "items",
+        )
+
+
+class OrderStatusSerializer(serializers.Serializer):
+    """
+    Сериализатор для изменения статуса заказа
+    """
+
+    status = serializers.ChoiceField(choices=Order.STATUS_CHOICES)
