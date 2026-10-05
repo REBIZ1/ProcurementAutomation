@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.conf import settings
@@ -173,27 +174,46 @@ class RefreshView(APIView):
                 {"detail": "Refresh token отсутствует"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        serializer = TokenRefreshSerializer(
+            data={
+                "refresh": refresh_token,
+            }
+        )
         try:
-            refresh = RefreshToken(refresh_token)
-            access = refresh.access_token
-            response = Response(
-                {"detail": "Access token обновлен"},
-                status=status.HTTP_200_OK,
-            )
-            response.set_cookie(
-                key="access_token",
-                value=str(access),
-                httponly=True,
-                secure=settings.JWT_COOKIE_SECURE,
-                samesite=settings.JWT_COOKIE_SAMESITE,
-                max_age=30 * 60,
-            )
-            return response
+            serializer.is_valid(raise_exception=True)
         except TokenError:
-            return Response(
+            response = Response(
                 {"detail": "Недействительный refresh token"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
+            return response
+
+        access_token = serializer.validated_data["access"]
+        new_refresh_token = serializer.validated_data.get("refresh")
+        response = Response(
+            {"detail": "Токены обновлены"},
+            status=status.HTTP_200_OK,
+        )
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=settings.JWT_COOKIE_SECURE,
+            samesite=settings.JWT_COOKIE_SAMESITE,
+            max_age=30 * 60,
+        )
+        if new_refresh_token:
+            response.set_cookie(
+                key="refresh_token",
+                value=new_refresh_token,
+                httponly=True,
+                secure=settings.JWT_COOKIE_SECURE,
+                samesite=settings.JWT_COOKIE_SAMESITE,
+                max_age=7 * 24 * 60 * 60,
+            )
+        return response
 
 
 class PasswordResetRequestView(APIView):

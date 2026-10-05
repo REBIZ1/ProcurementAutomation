@@ -7,6 +7,9 @@ class CookieJWTAuthentication(JWTAuthentication):
     """
 
     def authenticate(self, request):
+        header_auth = super().authenticate(request)
+        if header_auth is not None:
+            return header_auth
         access_token = request.COOKIES.get("access_token")
         if not access_token:
             return None
