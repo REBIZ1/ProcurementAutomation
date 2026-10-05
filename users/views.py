@@ -38,7 +38,7 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        send_verification_email(user)
+        send_verification_email(request, user)
         return Response(
             {
                 "detail": (
@@ -231,7 +231,7 @@ class PasswordResetRequestView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        send_password_reset_email(user)
+        send_password_reset_email(request, user)
         return Response(
             {
                 "detail": (

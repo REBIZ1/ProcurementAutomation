@@ -8,16 +8,13 @@ from users.tokens import (
 )
 
 
-def send_verification_email(user):
+def send_verification_email(request, user):
     """
     Отправляет письмо для подтверждения email пользователя
     """
     token = email_verification_token_generator.make_token(user)
-
-    verification_url = (
-        f"http://127.0.0.1:8000"
-        f"{reverse('verify-email')}"
-        f"?user_id={user.id}&token={token}"
+    verification_url = request.build_absolute_uri(
+        f"{reverse('verify-email')}?user_id={user.id}&token={token}"
     )
     subject = "Подтверждение регистрации"
     text_message = f"""
@@ -62,16 +59,14 @@ def send_verification_email(user):
     email.send()
 
 
-def send_password_reset_email(user):
+def send_password_reset_email(request, user):
     """
     Отправляет письмо для восстановления пароля
     """
 
     token = password_reset_token_generator.make_token(user)
-    reset_url = (
-        f"http://127.0.0.1:8000"
-        f"{reverse('password-reset-confirm')}"
-        f"?user_id={user.id}&token={token}"
+    reset_url = request.build_absolute_uri(
+        f"{reverse('password-reset-confirm')}?user_id={user.id}&token={token}"
     )
     subject = "Восстановление пароля"
     text_message = f"""
