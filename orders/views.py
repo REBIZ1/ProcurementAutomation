@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from orders.email import send_order_confirmation_email
+from orders.email import send_order_confirmation_email, send_order_invoice_email
 from orders.models import Cart, CartItem, Contact, Order, OrderItem
 from orders.serializers import (
     CartSerializer,
@@ -220,6 +220,7 @@ class OrderCreateView(APIView):
             .get(pk=order.pk)
         )
         send_order_confirmation_email(order)
+        send_order_invoice_email(order)
         return Response(
             OrderSerializer(order).data,
             status=201,
